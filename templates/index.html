@@ -190,7 +190,9 @@
           div.className = "col";
           div.innerHTML = `
             <div class="video-card">
-                <img src="${v.image}" alt="${v.movie?.title || ""}">
+                <img src="${v.image}" onclick="playVideo('${
+            v.video_url
+          }')" alt="${v.movie?.title || ""}">
                 <div class="video-info">
                     <div class="movie-title">${v.movie?.title || ""}</div>
                     <div class="tags">${v.tags
