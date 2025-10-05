@@ -1,0 +1,4 @@
+Flask
+cryptography
+requests
+flask_cors

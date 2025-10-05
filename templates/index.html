@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Forced Cinema Videos</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .video-card {
+        background: #fff;
+        border: 2px solid black;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        padding: 2%;
+        display: flex;
+        flex-direction: column;
+      }
+      .video-card img {
+        width: 100%;
+        object-fit: fill;
+        height: 200px;
+      }
+      .video-info {
+        padding: 10px;
+        flex: 1;
+      }
+      .tags span {
+        display: inline-block;
+        background: #007bff;
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        margin-right: 3px;
+        margin-bottom: 3px;
+      }
+      .movie-title {
+        font-weight: bold;
+      }
+      .pagination li {
+        cursor: pointer;
+      }
+      @media (max-width: 576px) {
+        .video-card img {
+          height: 180px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-3">
+      <h1 class="mb-4 text-center">Forced Cinema Videos</h1>
+      <div class="row">
+        <div class="row-md-4 mb-2">
+          <label class="form-label">Filter by Tags:</label>
+          <div id="tagFilter" class="d-flex flex-wrap gap-2">
+            <!-- checkboxes dynamically added -->
+          </div>
+        </div>
+      </div>
+      <!-- Filters -->
+      <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+          <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search by title or description"
+          />
+        </div>
+        <div class="col-md-4 mb-2">
+          <select id="sortSelect" class="form-select">
+            <option value="date">Sort by Date</option>
+            <option value="name">Sort by Movie Name</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Video Grid -->
+      <div id="videoGrid" class="row row-cols-1 row-cols-sm-2 g-3">
+        <!-- video cards will be injected here -->
+      </div>
+
+      <!-- Pagination -->
+      <nav>
+        <ul
+          id="pagination"
+          class="pagination d-flex flex-wrap justify-content-center mt-3"
+        >
+          <!-- pagination buttons injected here -->
+        </ul>
+      </nav>
+    </div>
+
+    <script>
+      let allVideos = [];
+      let filteredVideos = [];
+      let currentPage = 1;
+      const videosPerPage = 30;
+
+      // Fetch JSON data once
+      fetch("/json_data")
+        .then((res) => res.json())
+        .then((data) => {
+          allVideos = data;
+          setupTags();
+          filteredVideos = allVideos;
+          renderVideos();
+          renderPagination();
+        });
+
+      // Setup tag checkboxes
+      function setupTags() {
+        const allTags = new Set();
+        allVideos.forEach((v) => v.tags.forEach((t) => allTags.add(t)));
+        const tagFilterDiv = document.getElementById("tagFilter");
+        Array.from(allTags)
+          .sort()
+          .forEach((tag) => {
+            const id = `tag_${tag.replace(/\s+/g, "_")}`;
+            const div = document.createElement("div");
+            div.className = "form-check";
+            div.innerHTML = `
+            <input class="form-check-input" type="checkbox" value="${tag}" id="${id}">
+            <label class="form-check-label" for="${id}">${tag}</label>
+        `;
+            tagFilterDiv.appendChild(div);
+          });
+
+        // Add event listener for checkboxes
+        const checkboxes = tagFilterDiv.querySelectorAll(
+          "input[type=checkbox]"
+        );
+        checkboxes.forEach((cb) => cb.addEventListener("change", applyFilters));
+      }
+
+      // Apply filters and sorting
+      function applyFilters() {
+        const search = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const sort = document.getElementById("sortSelect").value;
+
+        const selectedTags = Array.from(
+          document.querySelectorAll("#tagFilter input:checked")
+        ).map((cb) => cb.value);
+
+        filteredVideos = allVideos.filter((v) => {
+          const title = v.movie?.title?.toLowerCase() || "";
+          const desc = v.description?.toLowerCase() || "";
+          const matchSearch = title.includes(search) || desc.includes(search);
+          const matchTag =
+            selectedTags.length === 0 ||
+            v.tags.some((t) => selectedTags.includes(t));
+          return matchSearch && matchTag;
+        });
+
+        if (sort === "name") {
+          filteredVideos.sort((a, b) =>
+            (a.movie?.title || "").localeCompare(b.movie?.title || "")
+          );
+        } else if (sort === "date") {
+          filteredVideos.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        currentPage = 1;
+        renderVideos();
+        renderPagination();
+      }
+
+      // Render video cards
+      function renderVideos() {
+        const grid = document.getElementById("videoGrid");
+        grid.innerHTML = "";
+
+        const start = (currentPage - 1) * videosPerPage;
+        const end = start + videosPerPage;
+        const pageVideos = filteredVideos.slice(start, end);
+
+        pageVideos.forEach((v) => {
+          const div = document.createElement("div");
+          div.className = "col";
+          div.innerHTML = `
+            <div class="video-card">
+                <img src="${v.image}" alt="${v.movie?.title || ""}">
+                <div class="video-info">
+                    <div class="movie-title">${v.movie?.title || ""}</div>
+                    <div class="tags">${v.tags
+                      .map((t) => `<span>${t}</span>`)
+                      .join("")}</div>
+                    <div class="mt-1"><strong>Stars:</strong> ${v.stars.join(
+                      ", "
+                    )}</div>
+                    <button class="btn btn-sm btn-primary mt-2" onclick="playVideo('${
+                      v.video_url
+                    }')">Play Video</button>
+                </div>
+            </div>
+        `;
+          grid.appendChild(div);
+        });
+      }
+
+      // Render pagination
+      function renderPagination() {
+        const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+        const pagination = document.getElementById("pagination");
+        pagination.innerHTML = "";
+
+        for (let i = 1; i <= totalPages; i++) {
+          const li = document.createElement("li");
+          li.className = `page-item ${i === currentPage ? "active" : ""}`;
+          li.innerHTML = `<a class="page-link">${i}</a>`;
+          li.addEventListener("click", () => {
+            currentPage = i;
+            renderVideos();
+            renderPagination();
+          });
+          pagination.appendChild(li);
+        }
+      }
+
+      // Play video in new tab using /video route
+      function playVideo(url) {
+        const win = window.open(
+          `/video?url=${encodeURIComponent(url)}`,
+          "_blank"
+        );
+        win.focus();
+      }
+
+      // Add event listeners
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", applyFilters);
+      document
+        .getElementById("sortSelect")
+        .addEventListener("change", applyFilters);
+    </script>
+  </body>
+</html>
