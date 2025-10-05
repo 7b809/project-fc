@@ -21,7 +21,7 @@ def decrypt_json(encrypted_file, password="theSecret"):
         encrypted = f.read()
     decrypted = fernet.decrypt(encrypted)
     return json.loads(decrypted.decode("utf-8"))
-
+ 
 # Load encrypted data
 all_videos_data = decrypt_json("data.enc", password="theSecret101")
 
