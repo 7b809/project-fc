@@ -63,10 +63,11 @@ def stream_video():
     if not video_url:
         return "No video URL provided", 400
 
+    # Forward browser's Range header to the origin
+    range_header = request.headers.get("Range", None)
     headers = {
         "accept": "*/*",
         "accept-language": "en-US,en;q=0.9",
-        "range": "bytes=0-",
         "sec-ch-ua": '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
@@ -76,8 +77,30 @@ def stream_video():
         "referer": "https://forcedcinema.net/",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
     }
+
+    if range_header:
+        headers["Range"] = range_header
+
+    # Make the request to the original video server
     r = requests.get(video_url, headers=headers, stream=True)
-    return Response(r.iter_content(chunk_size=1024), content_type=r.headers['content-type'])
+
+    # Build response headers
+    response_headers = {
+        "Content-Type": r.headers.get("Content-Type", "video/mp4"),
+        "Content-Length": r.headers.get("Content-Length", None),
+        "Accept-Ranges": "bytes"
+    }
+
+    # If partial content, include Content-Range
+    if r.status_code == 206 and "Content-Range" in r.headers:
+        response_headers["Content-Range"] = r.headers["Content-Range"]
+
+    return Response(
+        r.iter_content(chunk_size=1024),
+        status=r.status_code,
+        headers=response_headers
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
+    
