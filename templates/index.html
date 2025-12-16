@@ -55,18 +55,29 @@
       }
     </style>
   </head>
+
   <body>
     <div class="container py-3">
       <h1 class="mb-4 text-center">Forced Cinema Videos</h1>
+
+      <!-- TAG FILTER -->
       <div class="row">
         <div class="row-md-4 mb-2">
           <label class="form-label">Filter by Tags:</label>
-          <div id="tagFilter" class="d-flex flex-wrap gap-2">
-            <!-- checkboxes dynamically added -->
-          </div>
+
+          <!-- ✅ TAG SEARCH INPUT (ADDED) -->
+          <input
+            type="text"
+            id="tagSearchInput"
+            class="form-control mb-2"
+            placeholder="Search tags..."
+          />
+
+          <div id="tagFilter" class="d-flex flex-wrap gap-2"></div>
         </div>
       </div>
-      <!-- Filters -->
+
+      <!-- OTHER FILTERS (UNCHANGED) -->
       <div class="row mb-3">
         <div class="col-md-4 mb-2">
           <input
@@ -84,19 +95,15 @@
         </div>
       </div>
 
-      <!-- Video Grid -->
-      <div id="videoGrid" class="row row-cols-1 row-cols-sm-2 g-3">
-        <!-- video cards will be injected here -->
-      </div>
+      <!-- VIDEO GRID -->
+      <div id="videoGrid" class="row row-cols-1 row-cols-sm-2 g-3"></div>
 
-      <!-- Pagination -->
+      <!-- PAGINATION -->
       <nav>
         <ul
           id="pagination"
           class="pagination d-flex flex-wrap justify-content-center mt-3"
-        >
-          <!-- pagination buttons injected here -->
-        </ul>
+        ></ul>
       </nav>
     </div>
 
@@ -106,7 +113,9 @@
       let currentPage = 1;
       const videosPerPage = 30;
 
-      // Fetch JSON data once
+      /* ✅ STORE ALL TAGS (ADDED) */
+      let allTags = [];
+
       fetch("/json_data")
         .then((res) => res.json())
         .then((data) => {
@@ -117,32 +126,46 @@
           renderPagination();
         });
 
-      // Setup tag checkboxes
-      function setupTags() {
-        const allTags = new Set();
-        allVideos.forEach((v) => v.tags.forEach((t) => allTags.add(t)));
-        const tagFilterDiv = document.getElementById("tagFilter");
-        Array.from(allTags)
-          .sort()
-          .forEach((tag) => {
-            const id = `tag_${tag.replace(/\s+/g, "_")}`;
-            const div = document.createElement("div");
-            div.className = "form-check";
-            div.innerHTML = `
-            <input class="form-check-input" type="checkbox" value="${tag}" id="${id}">
-            <label class="form-check-label" for="${id}">${tag}</label>
-        `;
-            tagFilterDiv.appendChild(div);
-          });
+      /* ================= TAG SETUP ================= */
 
-        // Add event listener for checkboxes
-        const checkboxes = tagFilterDiv.querySelectorAll(
-          "input[type=checkbox]"
-        );
-        checkboxes.forEach((cb) => cb.addEventListener("change", applyFilters));
+      function setupTags() {
+        const tagSet = new Set();
+        allVideos.forEach((v) => v.tags.forEach((t) => tagSet.add(t)));
+        allTags = Array.from(tagSet).sort();
+        renderTagCheckboxes(allTags);
       }
 
-      // Apply filters and sorting
+      /* ✅ TAG CHECKBOX RENDERER (ADDED) */
+      function renderTagCheckboxes(tags) {
+        const tagFilterDiv = document.getElementById("tagFilter");
+        tagFilterDiv.innerHTML = "";
+
+        tags.forEach((tag) => {
+          const id = `tag_${tag.replace(/\s+/g, "_")}`;
+          const div = document.createElement("div");
+          div.className = "form-check";
+          div.innerHTML = `
+            <input class="form-check-input" type="checkbox" value="${tag}" id="${id}">
+            <label class="form-check-label" for="${id}">${tag}</label>
+          `;
+          tagFilterDiv.appendChild(div);
+        });
+
+        tagFilterDiv
+          .querySelectorAll("input[type=checkbox]")
+          .forEach((cb) =>
+            cb.addEventListener("change", () => {
+              applyFilters();
+
+              /* ✅ RESET TAG SEARCH AFTER SELECTION */
+              document.getElementById("tagSearchInput").value = "";
+              renderTagCheckboxes(allTags);
+            })
+          );
+      }
+
+      /* ================= APPLY FILTERS ================= */
+
       function applyFilters() {
         const search = document
           .getElementById("searchInput")
@@ -156,10 +179,14 @@
         filteredVideos = allVideos.filter((v) => {
           const title = v.movie?.title?.toLowerCase() || "";
           const desc = v.description?.toLowerCase() || "";
+
           const matchSearch = title.includes(search) || desc.includes(search);
+
+          /* ✅ CORRECT AND LOGIC */
           const matchTag =
             selectedTags.length === 0 ||
-            v.tags.some((t) => selectedTags.includes(t));
+            selectedTags.every((tag) => v.tags.includes(tag));
+
           return matchSearch && matchTag;
         });
 
@@ -167,7 +194,7 @@
           filteredVideos.sort((a, b) =>
             (a.movie?.title || "").localeCompare(b.movie?.title || "")
           );
-        } else if (sort === "date") {
+        } else {
           filteredVideos.sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 
@@ -176,42 +203,52 @@
         renderPagination();
       }
 
-      // Render video cards
+      /* ================= TAG SEARCH ================= */
+
+      document
+        .getElementById("tagSearchInput")
+        .addEventListener("input", function () {
+          const value = this.value.toLowerCase();
+          const filtered = allTags.filter((tag) =>
+            tag.toLowerCase().includes(value)
+          );
+          renderTagCheckboxes(filtered);
+        });
+
+      /* ================= RENDER VIDEOS ================= */
+
       function renderVideos() {
         const grid = document.getElementById("videoGrid");
         grid.innerHTML = "";
 
         const start = (currentPage - 1) * videosPerPage;
         const end = start + videosPerPage;
-        const pageVideos = filteredVideos.slice(start, end);
 
-        pageVideos.forEach((v) => {
+        filteredVideos.slice(start, end).forEach((v) => {
           const div = document.createElement("div");
           div.className = "col";
           div.innerHTML = `
             <div class="video-card">
-                <img src="${v.image}" onclick="playVideo('${
-            v.video_url
-          }')" alt="${v.movie?.title || ""}">
-                <div class="video-info">
-                    <div class="movie-title">${v.movie?.title || ""}</div>
-                    <div class="tags">${v.tags
-                      .map((t) => `<span>${t}</span>`)
-                      .join("")}</div>
-                    <div class="mt-1"><strong>Stars:</strong> ${v.stars.join(
-                      ", "
-                    )}</div>
-                    <button class="btn btn-sm btn-primary mt-2" onclick="playVideo('${
-                      v.video_url
-                    }')">Play Video</button>
-                </div>
-            </div>
-        `;
+              <img src="${v.image}" onclick="playVideo('${v.video_url}')">
+              <div class="video-info">
+                <div class="movie-title">${v.movie?.title || ""}</div>
+                <div class="tags">${v.tags
+                  .map((t) => `<span>${t}</span>`)
+                  .join("")}</div>
+                <div class="mt-1"><strong>Stars:</strong> ${v.stars.join(
+                  ", "
+                )}</div>
+                <button class="btn btn-sm btn-primary mt-2" onclick="playVideo('${v.video_url}')">
+                  Play Video
+                </button>
+              </div>
+            </div>`;
           grid.appendChild(div);
         });
       }
 
-      // Render pagination
+      /* ================= PAGINATION ================= */
+
       function renderPagination() {
         const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
         const pagination = document.getElementById("pagination");
@@ -221,25 +258,19 @@
           const li = document.createElement("li");
           li.className = `page-item ${i === currentPage ? "active" : ""}`;
           li.innerHTML = `<a class="page-link">${i}</a>`;
-          li.addEventListener("click", () => {
+          li.onclick = () => {
             currentPage = i;
             renderVideos();
             renderPagination();
-          });
+          };
           pagination.appendChild(li);
         }
       }
 
-      // Play video in new tab using /video route
       function playVideo(url) {
-        const win = window.open(
-          `/video?url=${encodeURIComponent(url)}`,
-          "_blank"
-        );
-        win.focus();
+        window.open(`/video?url=${encodeURIComponent(url)}`, "_blank");
       }
 
-      // Add event listeners
       document
         .getElementById("searchInput")
         .addEventListener("input", applyFilters);
