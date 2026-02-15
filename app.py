@@ -1,106 +1,164 @@
-from flask import Flask, render_template, jsonify, Response, request, redirect, url_for, session
-import requests, base64, hashlib, json
-from cryptography.fernet import Fernet
-from flask_cors import CORS
+from flask import Flask, render_template, request, jsonify, redirect, url_for
+from scraper.page_scraper import PageScraper
+from scraper.video_scraper import VideoScraper
+from config import Config
+import logging
+import time
 
-# Flask app setup
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+app.config.from_object(Config)
 
-app.secret_key = "super-secret-key-change-me"  # required for sessions
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 
-# Derive Fernet key from string password
-def get_key_from_password(password: str) -> bytes:
-    return base64.urlsafe_b64encode(hashlib.sha256(password.encode()).digest())
 
-# Decrypt JSON file and load into Python dict
-def decrypt_json(encrypted_file, password="theSecret"):
-    key = get_key_from_password(password)
-    fernet = Fernet(key)
-    with open(encrypted_file, "rb") as f:
-        encrypted = f.read()
-    decrypted = fernet.decrypt(encrypted)
-    return json.loads(decrypted.decode("utf-8"))
- 
-# Load encrypted data
-all_videos_data = decrypt_json("data.enc", password="theSecret101")
+# ===============================
+# Helper: Retry Wrapper
+# ===============================
+def retry_scrape(scrape_function, *args, retries=3, delay=1):
+    """
+    Retry wrapper for scraper functions
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            result = scrape_function(*args)
+            if result:  # If valid data returned
+                return result
+            logging.warning(f"Attempt {attempt}: No data returned.")
+        except Exception as e:
+            logging.error(f"Attempt {attempt} failed: {e}")
 
-# Password for login
-APP_PASSWORD = "nopassword!123"   # <-- set your password here
+        if attempt < retries:
+            time.sleep(delay)
 
-@app.route("/", methods=["GET", "POST"])
-def home():
-    if "authenticated" in session and session["authenticated"]:
-        return render_template("index.html")
+    return None
 
-    if request.method == "POST":
-        entered_password = request.form.get("password")
-        if entered_password == APP_PASSWORD:
-            session["authenticated"] = True
-            return redirect(url_for("home"))
-        else:
-            return render_template("login.html", error="Invalid password!")
 
-    return render_template("login.html")
+# ===============================
+# HOME PAGE
+# ===============================
+@app.route('/')
+@app.route('/page/<int:page_num>')
+def index(page_num=1):
+    """Home page displaying video cards with retry and fallback"""
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("home"))
+    # Prevent invalid page numbers
+    if page_num < 1:
+        return redirect(url_for('index', page_num=1))
 
-@app.route("/json_data")
-def json_data():
-    if "authenticated" not in session or not session["authenticated"]:
-        return {"error": "Unauthorized"}, 401
-    return jsonify(all_videos_data)
+    try:
+        scraper = PageScraper()
 
-@app.route("/video")
-def stream_video():
-    if "authenticated" not in session or not session["authenticated"]:
-        return {"error": "Unauthorized"}, 401
+        videos = retry_scrape(scraper.scrape_page, page_num)
 
-    video_url = request.args.get("url")
-    if not video_url:
-        return "No video URL provided", 400
+        # If scraping failed OR no videos found
+        if not videos:
+            logging.warning(f"No videos found on page {page_num}")
 
-    # Forward browser's Range header to the origin
-    range_header = request.headers.get("Range", None)
-    headers = {
-        "accept": "*/*",
-        "accept-language": "en-US,en;q=0.9",
-        "sec-ch-ua": '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "video",
-        "sec-fetch-mode": "no-cors",
-        "sec-fetch-site": "same-site",
-        "referer": "https://forcedcinema.net/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
-    }
+            if page_num != 1:
+                # Redirect to first page if not already there
+                return redirect(url_for('index', page_num=1))
 
-    if range_header:
-        headers["Range"] = range_header
+            return render_template(
+                'index.html',
+                error="No videos found.",
+                videos=[],
+                current_page=1
+            )
 
-    # Make the request to the original video server
-    r = requests.get(video_url, headers=headers, stream=True)
+        return render_template(
+            'index.html',
+            videos=videos,
+            current_page=page_num
+        )
 
-    # Build response headers
-    response_headers = {
-        "Content-Type": r.headers.get("Content-Type", "video/mp4"),
-        "Content-Length": r.headers.get("Content-Length", None),
-        "Accept-Ranges": "bytes"
-    }
+    except Exception as e:
+        logging.error(f"Unexpected error on index page: {e}")
+        return redirect(url_for('index', page_num=1))
 
-    # If partial content, include Content-Range
-    if r.status_code == 206 and "Content-Range" in r.headers:
-        response_headers["Content-Range"] = r.headers["Content-Range"]
 
-    return Response(
-        r.iter_content(chunk_size=1024),
-        status=r.status_code,
-        headers=response_headers
-    )
+# ===============================
+# VIDEO PAGE
+# ===============================
+@app.route('/video/<path:video_slug>')
+def video_page(video_slug):
+    """Individual video page with retry and fallback"""
 
-if __name__ == "__main__":
+    if not video_slug:
+        return redirect(url_for('index'))
+
+    try:
+        scraper = VideoScraper()
+        video_data = retry_scrape(scraper.scrape_video, video_slug)
+        if not video_data:
+            logging.warning(f"No video data found for slug: {video_slug}")
+            return redirect(url_for('index'))
+
+        return render_template('video.html', video=video_data)
+
+    except Exception as e:
+        logging.error(f"Error loading video page: {e}")
+        return redirect(url_for('index'))
+
+
+# ===============================
+# API ENDPOINT
+# ===============================
+@app.route('/api/videos/page/<int:page_num>')
+def api_videos(page_num):
+    """API endpoint for AJAX loading with retry"""
+
+    if page_num < 1:
+        return jsonify({'success': False, 'error': 'Invalid page number'})
+
+    try:
+        scraper = PageScraper()
+        videos = retry_scrape(scraper.scrape_page, page_num)
+
+        if not videos:
+            return jsonify({'success': False, 'error': 'No videos found'})
+
+        return jsonify({'success': True, 'videos': videos})
+
+    except Exception as e:
+        logging.error(f"API error: {e}")
+        return jsonify({'success': False, 'error': 'Internal server error'})
+
+# ===============================
+# CATEGORY / TAG PAGE
+# ===============================
+@app.route('/<path:custom_path>/')
+@app.route('/<path:custom_path>/page/<int:page_num>/')
+def filtered_listing(custom_path, page_num=1):
+
+    if page_num < 1:
+        return redirect(url_for('index'))
+
+    try:
+        scraper = PageScraper()
+
+        videos = retry_scrape(
+            scraper.scrape_page,
+            page_num,
+            custom_path
+        )
+
+        if not videos:
+            return redirect(url_for('index'))
+
+        return render_template(
+            'index.html',
+            videos=videos,
+            current_page=page_num
+        )
+
+    except Exception as e:
+        logging.error(f"Filtered page error: {e}")
+        return redirect(url_for('index'))
+
+# ===============================
+# APP RUN
+# ===============================
+if __name__ == '__main__':
     app.run(debug=True)
-    
+

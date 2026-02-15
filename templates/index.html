@@ -1,282 +1,211 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Forced Cinema Videos</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        background-color: #f8f9fa;
-      }
-      .video-card {
-        background: #fff;
-        border: 2px solid black;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
-        padding: 2%;
-        display: flex;
-        flex-direction: column;
-      }
-      .video-card img {
-        width: 100%;
-        object-fit: fill;
-        height: 200px;
-      }
-      .video-info {
-        padding: 10px;
-        flex: 1;
-      }
-      .tags span {
-        display: inline-block;
-        background: #007bff;
-        color: #fff;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        margin-right: 3px;
-        margin-bottom: 3px;
-      }
-      .movie-title {
-        font-weight: bold;
-      }
-      .pagination li {
-        cursor: pointer;
-      }
-      @media (max-width: 576px) {
-        .video-card img {
-          height: 180px;
-        }
-      }
-    </style>
-  </head>
+{% extends "base.html" %}
 
-  <body>
-    <div class="container py-3">
-      <h1 class="mb-4 text-center">Forced Cinema Videos</h1>
+{% block title %}Home - Educational Scraper Project{% endblock %}
 
-      <!-- TAG FILTER -->
-      <div class="row">
-        <div class="row-md-4 mb-2">
-          <label class="form-label">Filter by Tags:</label>
+{% block content %}
 
-          <!-- ✅ TAG SEARCH INPUT (ADDED) -->
-          <input
-            type="text"
-            id="tagSearchInput"
-            class="form-control mb-2"
-            placeholder="Search tags..."
-          />
+<div class="container my-5 bg-dark text-light">
 
-          <div id="tagFilter" class="d-flex flex-wrap gap-2"></div>
-        </div>
-      </div>
-
-      <!-- OTHER FILTERS (UNCHANGED) -->
-      <div class="row mb-3">
-        <div class="col-md-4 mb-2">
-          <input
-            type="text"
-            id="searchInput"
-            class="form-control"
-            placeholder="Search by title or description"
-          />
-        </div>
-        <div class="col-md-4 mb-2">
-          <select id="sortSelect" class="form-select">
-            <option value="date">Sort by Date</option>
-            <option value="name">Sort by Movie Name</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- VIDEO GRID -->
-      <div id="videoGrid" class="row row-cols-1 row-cols-sm-2 g-3"></div>
-
-      <!-- PAGINATION -->
-      <nav>
-        <ul
-          id="pagination"
-          class="pagination d-flex flex-wrap justify-content-center mt-3"
-        ></ul>
-      </nav>
+    <!-- HERO SECTION -->
+    <div class="text-center mb-5">
+        <h2 class="fw-bold">Latest Videos</h2>
+        <p class="text-muted">
+            Educational demonstration of web scraping with Flask
+        </p>
     </div>
 
-    <script>
-      let allVideos = [];
-      let filteredVideos = [];
-      let currentPage = 1;
-      const videosPerPage = 30;
+    <!-- ERROR MESSAGE -->
+    {% if error %}
+    <div class="alert alert-danger text-center">
+        {{ error }}
+    </div>
+    {% endif %}
 
-      /* ✅ STORE ALL TAGS (ADDED) */
-      let allTags = [];
+    <!-- VIDEO GRID -->
+    <div class="row g-4" id="video-grid">
 
-      fetch("/json_data")
-        .then((res) => res.json())
-        .then((data) => {
-          allVideos = data;
-          setupTags();
-          filteredVideos = allVideos;
-          renderVideos();
-          renderPagination();
-        });
+        {% for video in videos %}
 
-      /* ================= TAG SETUP ================= */
+        <div class="col-md-6 col-lg-4 col-xl-3 video-card">
+            <div class="card h-100 shadow-sm border-0">
 
-      function setupTags() {
-        const tagSet = new Set();
-        allVideos.forEach((v) => v.tags.forEach((t) => tagSet.add(t)));
-        allTags = Array.from(tagSet).sort();
-        renderTagCheckboxes(allTags);
-      }
+                <a href="{{ url_for('video_page', video_slug=video.slug) }}" 
+                   class="text-decoration-none text-dark">
 
-      /* ✅ TAG CHECKBOX RENDERER (ADDED) */
-      function renderTagCheckboxes(tags) {
-        const tagFilterDiv = document.getElementById("tagFilter");
-        tagFilterDiv.innerHTML = "";
+                    <!-- Thumbnail -->
+                    <div class="position-relative">
 
-        tags.forEach((tag) => {
-          const id = `tag_${tag.replace(/\s+/g, "_")}`;
-          const div = document.createElement("div");
-          div.className = "form-check";
-          div.innerHTML = `
-            <input class="form-check-input" type="checkbox" value="${tag}" id="${id}">
-            <label class="form-check-label" for="${id}">${tag}</label>
-          `;
-          tagFilterDiv.appendChild(div);
-        });
+                        <img src="{{ video.thumbnail }}" 
+                             class="card-img-top video-thumb" 
+                             alt="{{ video.title }}"
+                             loading="lazy">
 
-        tagFilterDiv
-          .querySelectorAll("input[type=checkbox]")
-          .forEach((cb) =>
-            cb.addEventListener("change", () => {
-              applyFilters();
+                        {% if video.is_hd %}
+                        <span class="badge bg-danger position-absolute top-0 end-0 m-2">
+                            HD
+                        </span>
+                        {% endif %}
 
-              /* ✅ RESET TAG SEARCH AFTER SELECTION */
-              document.getElementById("tagSearchInput").value = "";
-              renderTagCheckboxes(allTags);
-            })
-          );
-      }
+                        <div class="position-absolute bottom-0 start-0 w-100 px-2 py-1 bg-dark bg-opacity-75 text-white small d-flex justify-content-between">
+                            <span>👁 {{ video.views }}</span>
+                            <span>⏱ {{ video.duration }}</span>
+                        </div>
 
-      /* ================= APPLY FILTERS ================= */
+                    </div>
 
-      function applyFilters() {
-        const search = document
-          .getElementById("searchInput")
-          .value.toLowerCase();
-        const sort = document.getElementById("sortSelect").value;
+                    <div class="card-body">
 
-        const selectedTags = Array.from(
-          document.querySelectorAll("#tagFilter input:checked")
-        ).map((cb) => cb.value);
+                        <div class="mb-2">
+                            <div class="progress" style="height:6px;">
+                                <div class="progress-bar bg-success" 
+                                     style="width: {{ video.rating }}%;">
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                👍 {{ video.rating }}%
+                            </small>
+                        </div>
 
-        filteredVideos = allVideos.filter((v) => {
-          const title = v.movie?.title?.toLowerCase() || "";
-          const desc = v.description?.toLowerCase() || "";
+                        <h6 class="fw-semibold video-title">
+                            {{ video.title }}
+                        </h6>
 
-          const matchSearch = title.includes(search) || desc.includes(search);
+                        <div class="mt-2">
+                            {% for tag in video.tags[:3] %}
+                            <span class="badge bg-secondary">
+                                {{ tag.replace('-', ' ') }}
+                            </span>
+                            {% endfor %}
+                        </div>
 
-          /* ✅ CORRECT AND LOGIC */
-          const matchTag =
-            selectedTags.length === 0 ||
-            selectedTags.every((tag) => v.tags.includes(tag));
+                    </div>
 
-          return matchSearch && matchTag;
-        });
+                </a>
+            </div>
+        </div>
 
-        if (sort === "name") {
-          filteredVideos.sort((a, b) =>
-            (a.movie?.title || "").localeCompare(b.movie?.title || "")
-          );
-        } else {
-          filteredVideos.sort((a, b) => new Date(b.date) - new Date(a.date));
+        {% else %}
+
+        <div class="col-12 text-center">
+            <div class="alert alert-warning">
+                No videos found.
+            </div>
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    <!-- NORMAL PAGINATION (UNCHANGED LOGIC) -->
+    <nav class="mt-5">
+        <ul class="pagination justify-content-center">
+
+            {% if current_page > 1 %}
+            <li class="page-item">
+                <a class="page-link" 
+                   href="{{ url_for('index', page_num=current_page-1) }}">
+                    Previous
+                </a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link">
+                    {{ current_page }}
+                </span>
+            </li>
+
+            <li class="page-item">
+                <a class="page-link" 
+                   href="{{ url_for('index', page_num=current_page+1) }}">
+                    Next
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+
+
+<!-- ================= SIDE ARROW BUTTONS ================= -->
+
+{% if current_page > 1 %}
+<div class="position-fixed top-50 start-0 translate-middle-y ms-3">
+    <a href="{{ url_for('index', page_num=current_page-1) }}"
+       class="btn btn-light rounded-circle shadow-lg"
+       style="width:50px;height:50px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa fa-chevron-left text-dark"></i>
+    </a>
+</div>
+{% endif %}
+
+<div class="position-fixed top-50 end-0 translate-middle-y me-3">
+    <a href="{{ url_for('index', page_num=current_page+1) }}"
+       class="btn btn-light rounded-circle shadow-lg"
+       style="width:50px;height:50px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa fa-chevron-right text-dark"></i>
+    </a>
+</div>
+
+
+
+<!-- ================= LOCAL STORAGE SYSTEM ================= -->
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const CACHE_KEY = "video_cache";
+    const currentPage = {{ current_page }};
+    const today = new Date().toISOString().split('T')[0];
+
+    let cache = localStorage.getItem(CACHE_KEY);
+
+    if (cache) {
+        cache = JSON.parse(cache);
+
+        if (cache.date !== today) {
+            localStorage.removeItem(CACHE_KEY);
+            cache = null;
         }
+    }
 
-        currentPage = 1;
-        renderVideos();
-        renderPagination();
-      }
+    if (!cache) {
+        cache = {
+            date: today,
+            pages: {}
+        };
+    }
 
-      /* ================= TAG SEARCH ================= */
+    const pageKey = "page_" + currentPage;
 
-      document
-        .getElementById("tagSearchInput")
-        .addEventListener("input", function () {
-          const value = this.value.toLowerCase();
-          const filtered = allTags.filter((tag) =>
-            tag.toLowerCase().includes(value)
-          );
-          renderTagCheckboxes(filtered);
+    // If page already exists → skip saving
+    if (!cache.pages[pageKey]) {
+
+        const videos = [];
+
+        document.querySelectorAll(".video-card").forEach(card => {
+            const title = card.querySelector(".video-title")?.innerText || "";
+            const thumbnail = card.querySelector(".video-thumb")?.src || "";
+            const url = card.querySelector("a")?.href || "";
+
+            videos.push({
+                title: title,
+                thumbnail: thumbnail,
+                url: url
+            });
         });
 
-      /* ================= RENDER VIDEOS ================= */
+        cache.pages[pageKey] = videos;
 
-      function renderVideos() {
-        const grid = document.getElementById("videoGrid");
-        grid.innerHTML = "";
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 
-        const start = (currentPage - 1) * videosPerPage;
-        const end = start + videosPerPage;
+        console.log("Saved to cache:", pageKey);
+    } else {
+        console.log("Page already cached:", pageKey);
+    }
 
-        filteredVideos.slice(start, end).forEach((v) => {
-          const div = document.createElement("div");
-          div.className = "col";
-          div.innerHTML = `
-            <div class="video-card">
-              <img src="${v.image}" onclick="playVideo('${v.video_url}')">
-              <div class="video-info">
-                <div class="movie-title">${v.movie?.title || ""}</div>
-                <div class="tags">${v.tags
-                  .map((t) => `<span>${t}</span>`)
-                  .join("")}</div>
-                <div class="mt-1"><strong>Stars:</strong> ${v.stars.join(
-                  ", "
-                )}</div>
-                <button class="btn btn-sm btn-primary mt-2" onclick="playVideo('${v.video_url}')">
-                  Play Video
-                </button>
-              </div>
-            </div>`;
-          grid.appendChild(div);
-        });
-      }
+});
+</script>
 
-      /* ================= PAGINATION ================= */
-
-      function renderPagination() {
-        const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
-        const pagination = document.getElementById("pagination");
-        pagination.innerHTML = "";
-
-        for (let i = 1; i <= totalPages; i++) {
-          const li = document.createElement("li");
-          li.className = `page-item ${i === currentPage ? "active" : ""}`;
-          li.innerHTML = `<a class="page-link">${i}</a>`;
-          li.onclick = () => {
-            currentPage = i;
-            renderVideos();
-            renderPagination();
-          };
-          pagination.appendChild(li);
-        }
-      }
-
-      function playVideo(url) {
-        window.open(`/video?url=${encodeURIComponent(url)}`, "_blank");
-      }
-
-      document
-        .getElementById("searchInput")
-        .addEventListener("input", applyFilters);
-      document
-        .getElementById("sortSelect")
-        .addEventListener("change", applyFilters);
-    </script>
-  </body>
-</html>
+{% endblock %}

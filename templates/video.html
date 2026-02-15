@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{{ video.title }} - Educational Scraper Project{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid bg-dark text-light py-5">
+
+    <div class="container">
+
+        <div class="row">
+
+            <!-- ================= VIDEO SECTION ================= -->
+            <div class="col-lg-8">
+
+                <h1 class="fw-bold mb-4 text-light display-6">
+                    {{ video.title }}
+                </h1>
+
+                <!-- Thumbnail Clickable Instead of Iframe -->
+                <div class="position-relative rounded overflow-hidden shadow-lg video-preview mb-4 border border-secondary">
+
+                    <a href="{{ video.video_url }}" 
+                       target="_blank" 
+                       class="text-decoration-none d-block position-relative">
+
+                        <!-- Thumbnail -->
+                        <img src="{{ video.preview_image }}"
+                             alt="{{ video.title }}"
+                             class="img-fluid w-100 preview-img">
+
+                        <!-- Dark Overlay -->
+                        <div class="position-absolute top-0 start-0 w-100 h-100 overlay"></div>
+
+                        <!-- Play Button Overlay -->
+                        <div class="position-absolute top-50 start-50 translate-middle play-button">
+                            <div class="bg-danger bg-opacity-75 rounded-circle d-flex align-items-center justify-content-center shadow-lg"
+                                 style="width:95px;height:95px;">
+                                <i class="fa fa-play text-white fs-3"></i>
+                            </div>
+                        </div>
+
+                    </a>
+
+                </div>
+
+                <!-- Video Stats -->
+                <div class="card bg-secondary bg-opacity-25 border border-secondary shadow-lg mb-4 glass-card">
+                    <div class="card-body text-light">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+
+                            <div class="fs-6">
+                                👁 <strong>{{ video.views }}</strong> views
+                            </div>
+
+                            <div class="text-success fw-bold fs-5">
+                                {{ video.rating }}%
+                            </div>
+
+                        </div>
+
+                        <!-- Rating Bar -->
+                        <div class="progress mb-3 bg-dark" style="height: 8px;">
+                            <div class="progress-bar bg-success"
+                                 role="progressbar"
+                                 style="width: {{ video.rating }}%;">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-4 fs-6">
+                            <div>👍 {{ video.likes }}</div>
+                            <div>👎 {{ video.dislikes }}</div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Description -->
+                {% if video.description %}
+                <div class="card bg-secondary bg-opacity-25 border border-secondary shadow-lg glass-card">
+                    <div class="card-body text-light">
+                        <h5 class="mb-3">Description</h5>
+                        <p class="text-light opacity-75 mb-0">
+                            {{ video.description }}
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- ================= SIDEBAR SECTION ================= -->
+            <div class="col-lg-4">
+
+                <!-- Video Info -->
+                <div class="card bg-secondary bg-opacity-25 border border-secondary shadow-lg mb-4 glass-card">
+                    <div class="card-body text-light">
+
+                        <h5 class="mb-3">Video Information</h5>
+
+                        <p class="mb-2">
+                            <strong>Date:</strong> {{ video.date }}
+                        </p>
+
+                        <p class="mb-2">
+                            <strong>Stars:</strong>
+                            <a href="{{ video.stars.url | replace('https://forcedcinema.net', '') }}" 
+                               class="text-info text-decoration-none hover-link">
+                                {{ video.stars.name }}
+                            </a>
+                        </p>
+
+                        <p class="mb-0">
+                            <strong>Movie:</strong>
+                            <a href="{{ video.movie.url | replace('https://forcedcinema.net', '') }}" 
+                               class="text-info text-decoration-none hover-link">
+                                {{ video.movie.title }}
+                            </a>
+                        </p>
+
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="card bg-secondary bg-opacity-25 border border-secondary shadow-lg mb-4 glass-card">
+                    <div class="card-body text-light">
+                        <h6 class="mb-3">Categories</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for category in video.categories %}
+                            <a href="{{ category.url | replace('https://forcedcinema.net', '') }}"
+                               class="badge bg-primary text-decoration-none px-3 py-2">
+                                {{ category.name }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tags -->
+                <div class="card bg-secondary bg-opacity-25 border border-secondary shadow-lg glass-card">
+                    <div class="card-body text-light">
+                        <h6 class="mb-3">Tags</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for tag in video.tags %}
+                            <a href="{{ tag.url | replace('https://forcedcinema.net', '') }}"
+                               class="badge bg-secondary text-decoration-none px-3 py-2">
+                                {{ tag.name }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- ================= HOVER EFFECT STYLE ================= -->
+<style>
+.video-preview {
+    cursor: pointer;
+}
+
+.preview-img {
+    transition: transform 0.4s ease, filter 0.4s ease;
+}
+
+.video-preview:hover .preview-img {
+    transform: scale(1.08);
+    filter: brightness(0.85);
+}
+
+.overlay {
+    background: rgba(0,0,0,0.25);
+    transition: background 0.3s ease;
+}
+
+.video-preview:hover .overlay {
+    background: rgba(0,0,0,0.55);
+}
+
+.play-button {
+    transition: transform 0.3s ease;
+}
+
+.video-preview:hover .play-button {
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+.glass-card {
+    backdrop-filter: blur(6px);
+}
+
+.hover-link:hover {
+    text-decoration: underline;
+}
+</style>
+
+{% endblock %}

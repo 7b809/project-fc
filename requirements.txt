@@ -1,4 +1,4 @@
 Flask
-cryptography
 requests
-flask_cors
+beautifulsoup4
+lxml
