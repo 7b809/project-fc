@@ -17,56 +17,71 @@
                     {{ video.title }}
                 </h1>
 
-                <!-- ================= UPDATED VIDEO SECTION ================= -->
-                <div class="position-relative rounded overflow-hidden shadow-lg video-preview mb-4 border border-secondary">
+                <!-- ================= NEW BUTTONS ================= -->
+                <div class="mb-3 d-flex gap-2">
+                    <button class="btn btn-sm btn-danger" onclick="loadVideo('video')">▶ Video</button>
+                    <button class="btn btn-sm btn-primary" onclick="loadVideo('iframe')">🌐 Iframe</button>
+                    <button class="btn btn-sm btn-secondary" onclick="loadVideo('link')">🔗 Direct</button>
+                </div>
 
-                    {% if video.video_type == "file" %}
+                <!-- ================= VIDEO CONTAINER ================= -->
+                <div id="video-container" class="position-relative rounded overflow-hidden shadow-lg video-preview mb-4 border border-secondary">
 
-                        <!-- VIDEO TAG -->
-                        <video controls class="w-100 rounded">
-                            <source src="{{ video.video_url }}" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
+                    <!-- DEFAULT EXISTING CLICKABLE (UNCHANGED) -->
+                    <a href="{{ video.video_url }}" 
+                       target="_blank" 
+                       class="text-decoration-none d-block position-relative">
 
-                    {% elif video.video_type == "iframe" %}
+                        <!-- Thumbnail -->
+                        <img src="{{ video.preview_image }}"
+                             alt="{{ video.title }}"
+                             class="img-fluid w-100 preview-img">
 
-                        <!-- IFRAME -->
-                        <div class="ratio ratio-16x9">
-                            <iframe src="{{ video.video_url }}"
-                                    title="{{ video.title }}"
-                                    allowfullscreen>
-                            </iframe>
+                        <!-- Dark Overlay -->
+                        <div class="position-absolute top-0 start-0 w-100 h-100 overlay"></div>
+
+                        <!-- Play Button Overlay -->
+                        <div class="position-absolute top-50 start-50 translate-middle play-button">
+                            <div class="bg-danger bg-opacity-75 rounded-circle d-flex align-items-center justify-content-center shadow-lg"
+                                 style="width:95px;height:95px;">
+                                <i class="fa fa-play text-white fs-3"></i>
+                            </div>
                         </div>
 
-                    {% else %}
-
-                        <!-- EXISTING CLICKABLE (UNCHANGED) -->
-                        <a href="{{ video.video_url }}" 
-                           target="_blank" 
-                           class="text-decoration-none d-block position-relative">
-
-                            <!-- Thumbnail -->
-                            <img src="{{ video.preview_image }}"
-                                 alt="{{ video.title }}"
-                                 class="img-fluid w-100 preview-img">
-
-                            <!-- Dark Overlay -->
-                            <div class="position-absolute top-0 start-0 w-100 h-100 overlay"></div>
-
-                            <!-- Play Button Overlay -->
-                            <div class="position-absolute top-50 start-50 translate-middle play-button">
-                                <div class="bg-danger bg-opacity-75 rounded-circle d-flex align-items-center justify-content-center shadow-lg"
-                                     style="width:95px;height:95px;">
-                                    <i class="fa fa-play text-white fs-3"></i>
-                                </div>
-                            </div>
-
-                        </a>
-
-                    {% endif %}
+                    </a>
 
                 </div>
-                <!-- ================= END VIDEO SECTION ================= -->
+
+                <!-- ================= SCRIPT ================= -->
+                <script>
+                function loadVideo(type) {
+                    const container = document.getElementById("video-container");
+
+                    if (type === "video") {
+                        container.innerHTML = `
+                            <video controls autoplay class="w-100 rounded">
+                                <source src="{{ video.video_url }}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        `;
+                    }
+
+                    else if (type === "iframe") {
+                        container.innerHTML = `
+                            <div class="ratio ratio-16x9">
+                                <iframe src="{{ video.video_url }}"
+                                        title="{{ video.title }}"
+                                        allowfullscreen>
+                                </iframe>
+                            </div>
+                        `;
+                    }
+
+                    else {
+                        window.open("{{ video.video_url }}", "_blank");
+                    }
+                }
+                </script>
 
                 <!-- Video Stats -->
                 <div class="card bg-secondary bg-opacity-25 border border-secondary shadow-lg mb-4 glass-card">
