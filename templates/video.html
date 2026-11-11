@@ -27,9 +27,13 @@
                 <!-- ================= VIDEO CONTAINER ================= -->
                 <div id="video-container" class="position-relative rounded overflow-hidden shadow-lg video-preview mb-4 border border-secondary">
 
-                    <!-- DEFAULT EXISTING CLICKABLE (UNCHANGED) -->
-                    <a href="{{ video.video_url }}" 
-                       target="_blank" 
+                    <!-- DEFAULT EXISTING CLICKABLE -->
+                    <!-- referrerpolicy="no-referrer" stops the browser sending
+                         Referer: https://fc105.vercel.app/ which the CDN rejects (403) -->
+                    <a href="{{ video.video_url }}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       referrerpolicy="no-referrer"
                        class="text-decoration-none d-block position-relative">
 
                         <!-- Thumbnail -->
@@ -59,7 +63,8 @@
 
                     if (type === "video") {
                         container.innerHTML = `
-                            <video controls autoplay class="w-100 rounded">
+                            <video controls autoplay class="w-100 rounded"
+                                   referrerpolicy="no-referrer">
                                 <source src="{{ video.video_url }}" type="video/mp4">
                                 Your browser does not support the video tag.
                             </video>
@@ -71,6 +76,7 @@
                             <div class="ratio ratio-16x9">
                                 <iframe src="{{ video.video_url }}"
                                         title="{{ video.title }}"
+                                        referrerpolicy="no-referrer"
                                         allowfullscreen>
                                 </iframe>
                             </div>
@@ -78,7 +84,7 @@
                     }
 
                     else {
-                        window.open("{{ video.video_url }}", "_blank");
+                        window.open("{{ video.video_url }}", "_blank", "noopener,noreferrer");
                     }
                 }
                 </script>
@@ -144,7 +150,7 @@
 
                         <p class="mb-2">
                             <strong>Stars:</strong>
-                            <a href="{{ video.stars.url | replace('https://forcedcinema.net', '') }}" 
+                            <a href="{{ video.stars.url | replace('https://forcedcinema.net', '') }}"
                                class="text-info text-decoration-none hover-link">
                                 {{ video.stars.name }}
                             </a>
@@ -152,7 +158,7 @@
 
                         <p class="mb-0">
                             <strong>Movie:</strong>
-                            <a href="{{ video.movie.url | replace('https://forcedcinema.net', '') }}" 
+                            <a href="{{ video.movie.url | replace('https://forcedcinema.net', '') }}"
                                class="text-info text-decoration-none hover-link">
                                 {{ video.movie.title }}
                             </a>
